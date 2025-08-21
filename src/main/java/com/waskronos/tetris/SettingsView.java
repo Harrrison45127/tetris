@@ -10,7 +10,7 @@ public class SettingsView extends VBox {
         setSpacing(15);
         setAlignment(Pos.CENTER);
 
-        Label title = new Label("This is another screen");
+        Label title = new Label("Configuration Settings");
         Button back = new Button("Back to Main");
 
         back.setOnAction(e -> App.setRoot(new MainMenuView()));

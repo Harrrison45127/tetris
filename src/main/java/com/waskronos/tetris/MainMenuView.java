@@ -10,11 +10,17 @@ public class MainMenuView extends VBox {
         setSpacing(15);
         setAlignment(Pos.CENTER);
 
-        Label title = new Label("Main Screen");
-        Button goOther = new Button("Go to Other Screen");
+        Label title = new Label("TETRIS");
+        Button startGame   = new Button("Start Game");
+        Button highScores  = new Button("High Scores");
+        Button settings    = new Button("Settings");
+        Button quit        = new Button("Quit");
 
-        goOther.setOnAction(e -> App.setRoot(new SettingsView()));
+        startGame.setOnAction(e -> App.setRoot(new GameView()));
+        highScores.setOnAction(e -> App.setRoot(new HighScoresView()));
+        settings.setOnAction(e -> App.setRoot(new SettingsView()));
+        quit.setOnAction(e -> System.exit(0));
 
-        getChildren().addAll(title, goOther);
+        getChildren().addAll(title, startGame, highScores, settings, quit);
     }
 }

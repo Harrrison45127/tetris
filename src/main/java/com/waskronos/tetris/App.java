@@ -11,7 +11,7 @@ public class App extends Application {
     @Override
     public void start(Stage stage) {
         // Start with the Main Menu
-        scene = new Scene(new MainMenuView(), 400, 300);
+        scene = new Scene(new MainMenuView(), 480, 720);
         stage.setTitle("Tetris");
         stage.setScene(scene);
         stage.show();
