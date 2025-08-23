@@ -14,6 +14,8 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 
 import java.util.Random;
 
@@ -41,6 +43,7 @@ public class GameView extends BorderPane {
         // Top bar
         Button back = new Button("Back");
         back.setOnAction(e -> App.setRoot(new MainMenuView()));
+        back.setFocusTraversable(false);
 
         HBox topBar = new HBox(12, back, score);
         topBar.setAlignment(Pos.CENTER_LEFT);
@@ -70,9 +73,16 @@ public class GameView extends BorderPane {
         spawnNewPiece();
         startGravity(GRAVITY_MS);
 
+        sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                newScene.addEventHandler(javafx.scene.input.KeyEvent.KEY_PRESSED, this::handleKey);
+            }
+        });
+
         // ensure the view can get focus if you add keys later
         setFocusTraversable(true);
         requestFocus();
+       
     }
 
     // -------------------- Game loop --------------------
@@ -96,6 +106,52 @@ public class GameView extends BorderPane {
         }
         render();
     }
+// -------------------- Key Press --------------------
+    public void handleKey(KeyEvent e) {
+    switch (e.getCode()) {
+        case LEFT:  tryMove(0, -1); break;
+        case RIGHT: tryMove(0,  1); break;
+        case DOWN:  tryMove(1,  0); break;
+        case UP:    tryRotateCW();  break;
+        case X:     tryRotateCW();  break;
+        case Z:     tryRotateCCW(); break;
+        default:    return;
+    }
+    render();
+}
+// -------------------- Movement & rotation  --------------------
+
+    private boolean tryMove(int dRow, int dCol) {
+        if (active == null) return false;
+        int newRow = active.row + dRow;
+        int newCol = active.col + dCol;
+        if (canPlace(active, newRow, newCol, active.rotationIndex)) {
+            active.row = newRow;
+            active.col = newCol;
+            return true;
+        }
+        return false;
+    }
+
+    private boolean tryRotateCW() {
+        if (active == null) return false;
+        int nextRot = (active.rotationIndex + 1) % active.type.rotations.length;
+        if (canPlace(active, active.row, active.col, nextRot)) {
+            active.rotationIndex = nextRot;
+            return true;
+        }
+        return false;
+    }
+
+    private boolean tryRotateCCW() {
+        if (active == null) return false;
+        int nextRot = (active.rotationIndex - 1 + active.type.rotations.length) % active.type.rotations.length;
+        if (canPlace(active, active.row, active.col, nextRot)) {
+            active.rotationIndex = nextRot;
+            return true;
+        }
+        return false;
+    }
 
     // -------------------- Spawning/locking --------------------
 
@@ -117,7 +173,7 @@ public class GameView extends BorderPane {
     }
 
     private TetrominoType randomType() {
-        TetrominoType[] bag = { TetrominoType.I, TetrominoType.O, TetrominoType.T };
+        TetrominoType[] bag = TetrominoType.values();
         return bag[rng.nextInt(bag.length)];
     }
 
@@ -193,10 +249,16 @@ public class GameView extends BorderPane {
 
     private static int colorFor(TetrominoType t) {
         // simple ARGB colors (alpha FF)
-        if (t == TetrominoType.I) return 0xFF00BCD4; // teal
-        if (t == TetrominoType.O) return 0xFFFFC107; // amber
-        if (t == TetrominoType.T) return 0xFF9C27B0; // purple
-        return 0xFFFFFFFF;
+        switch (t) {
+        case I: return 0xFF00BCD4; // teal
+        case O: return 0xFFFFC107; // amber
+        case T: return 0xFF9C27B0; // purple
+        case J: return 0xFF3F51B5; // blue
+        case L: return 0xFFFF9800; // orange
+        case S: return 0xFF4CAF50; // green
+        case Z: return 0xFFF44336; // red
+        default: return 0xFFFFFFFF;
+    }
     }
 
     private static Color toColor(int argb) {
@@ -226,6 +288,44 @@ public class GameView extends BorderPane {
                 { {1,0},
                   {1,1},
                   {1,0} }
+        }),
+        J(new int[][][] {
+            {{1,0,0},
+             {1,1,1}},
+            {{1,1},
+             {1,0},
+             {1,0}},
+            {{1,1,1},
+             {0,0,1}},
+            {{0,1},
+             {0,1},
+             {1,1}},
+        }),
+        L(new int[][][] {
+            {{0,0,1},
+             {1,1,1}},
+            {{1,0},
+             {1,0},
+             {1,1}},
+            {{1,1,1},
+             {1,0,0}},
+            {{1,1},
+             {0,1},
+             {0,1}},
+        }),
+        S(new int[][][] {
+            { {0,1,1},
+              {1,1,0} },
+            { {1,0},
+              {1,1},
+              {0,1} }
+        }),
+        Z(new int[][][] {
+            { {1,1,0},
+              {0,1,1} },
+            { {0,1},
+              {1,1},
+              {1,0} }
         });
 
         final int[][][] rotations;
