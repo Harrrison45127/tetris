@@ -7,6 +7,8 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
@@ -28,17 +30,26 @@ public class GameView extends BorderPane {
         topBar.setPadding(new Insets(8, 12, 8, 12));
         setTop(topBar);
 
-        // Board grid (placeholder cells)
+        // Board grid
         board.setHgap(1);
         board.setVgap(1);
-        board.setPadding(new Insets(12));
+
         for (int r = 0; r < ROWS; r++) {
             for (int c = 0; c < COLS; c++) {
                 Rectangle cell = new Rectangle(CELL, CELL, Color.BLACK);
-                cell.setStroke(Color.web("#222")); // faint grid line
+                cell.setStroke(Color.web("#222"));
                 board.add(cell, c, r);
             }
         }
-        setCenter(board);
+
+        // Keep keeps grid at set size so it can be centered
+        board.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        // If the grid does get extra space, keep its cells centered within it.
+        board.setAlignment(Pos.CENTER);
+
+        // Center the board
+        StackPane wrapper = new StackPane(board);
+        wrapper.setPadding(new Insets(12));   // outer margin around the board
+        setCenter(wrapper);
     }
 }
