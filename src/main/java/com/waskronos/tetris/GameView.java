@@ -26,9 +26,7 @@ public class GameView extends BorderPane {
     private int scorePoints = 0;
 
     private final Label score = new Label("Score: 0");
-    private void updateScoreLabel() {
-    score.setText("Score: " + scorePoints);
-    }
+    private void updateScoreLabel() { score.setText("Score: " + scorePoints); }
 
     private final GridPane board = new GridPane();
 
@@ -43,6 +41,11 @@ public class GameView extends BorderPane {
     private Timeline fallTimer;
     private static final int GRAVITY_MS = 500;
     private final Random rng = new Random();
+
+    // --- Pause state & overlay ---
+    private boolean paused = false;
+    private final Label pauseOverlay = new Label("PAUSED\nPress P to resume");
+    private final StackPane wrapper = new StackPane();
 
     public GameView() {
         // Top bar
@@ -69,15 +72,30 @@ public class GameView extends BorderPane {
         board.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
         board.setAlignment(Pos.CENTER);
 
-        // Center the board
-        StackPane wrapper = new StackPane(board);
+        // Center the board + overlay
+        wrapper.getChildren().add(board);
         wrapper.setPadding(new Insets(12));
         setCenter(wrapper);
+
+        pauseOverlay.setVisible(false);
+        pauseOverlay.setMouseTransparent(true);
+        pauseOverlay.setStyle(
+            "-fx-background-color: rgba(0,0,0,0.55);" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 28px;" +
+            "-fx-font-weight: bold;" +
+            "-fx-padding: 30px;" +
+            "-fx-background-radius: 12px;" +
+            "-fx-text-alignment: center;"
+        );
+        StackPane.setAlignment(pauseOverlay, Pos.CENTER);
+        wrapper.getChildren().add(pauseOverlay);
 
         // Start game
         spawnNewPiece();
         startGravity(GRAVITY_MS);
 
+        // Key handling (attach when scene appears)
         sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 newScene.addEventHandler(javafx.scene.input.KeyEvent.KEY_PRESSED, this::handleKey);
@@ -85,7 +103,6 @@ public class GameView extends BorderPane {
         });
         setFocusTraversable(true);
         requestFocus();
-       
     }
 
     // -------------------- Game loop --------------------
@@ -98,6 +115,7 @@ public class GameView extends BorderPane {
     }
 
     private void tick() {
+        if (paused) return;          // do nothing while paused
         if (active == null) return;
 
         // try to move down; if can't, lock and respawn
@@ -113,20 +131,45 @@ public class GameView extends BorderPane {
         }
         render();
     }
-// -------------------- Key Press --------------------
+
+    // -------------------- Key Press --------------------
     public void handleKey(KeyEvent e) {
-    switch (e.getCode()) {
-        case LEFT:  tryMove(0, -1); break;
-        case RIGHT: tryMove(0,  1); break;
-        case DOWN:  tryMove(1,  0); break;
-        case UP:    tryRotateCW();  break;
-        case X:     tryRotateCW();  break;
-        case Z:     tryRotateCCW(); break;
-        default:    return;
+        if (e.getCode() == KeyCode.P) {
+            togglePause();
+            e.consume();
+            return;
+        }
+
+        if (paused) { // ignore gameplay input while paused
+            e.consume();
+            return;
+        }
+
+        switch (e.getCode()) {
+            case LEFT:  tryMove(0, -1); break;
+            case RIGHT: tryMove(0,  1); break;
+            case DOWN:  tryMove(1,  0); break;
+            case UP:    tryRotateCW();  break;
+            case X:     tryRotateCW();  break;
+            case Z:     tryRotateCCW(); break;
+            default:    return;
+        }
+        render();
     }
-    render();
-}
-// -------------------- Movement & rotation  --------------------
+
+    private void togglePause() {
+        paused = !paused;
+        if (paused) {
+            if (fallTimer != null) fallTimer.pause();
+            pauseOverlay.setVisible(true);
+        } else {
+            if (fallTimer != null) fallTimer.play();
+            pauseOverlay.setVisible(false);
+            requestFocus();
+        }
+    }
+
+    // -------------------- Movement & rotation  --------------------
 
     private boolean tryMove(int dRow, int dCol) {
         if (active == null) return false;
@@ -159,50 +202,51 @@ public class GameView extends BorderPane {
         }
         return false;
     }
+
     // -------------------- clear full lines --------------------
     private int clearFullLines() {
-    int write = ROWS - 1;   // where to write the next kept row
-    int cleared = 0;
+        int write = ROWS - 1;   // where to write the next kept row
+        int cleared = 0;
 
-    // walk from bottom to top, copying rows that are not full
-    for (int r = ROWS - 1; r >= 0; r--) {
-        boolean full = true;
-        for (int c = 0; c < COLS; c++) {
-            if (boardState[r][c] == 0) { full = false; break; }
-        }
-        if (!full) {
-            // keep row copy to write
+        // walk from bottom to top, copying rows that are not full
+        for (int r = ROWS - 1; r >= 0; r--) {
+            boolean full = true;
             for (int c = 0; c < COLS; c++) {
-                boardState[write][c] = boardState[r][c];
+                if (boardState[r][c] == 0) { full = false; break; }
             }
-            write--;
-        } else {
-            //Full row is not copied
-            cleared++;
+            if (!full) {
+                // keep row copy to write
+                for (int c = 0; c < COLS; c++) {
+                    boardState[write][c] = boardState[r][c];
+                }
+                write--;
+            } else {
+                // Full row is not copied
+                cleared++;
+            }
         }
+
+        // zero out top rows after compacting
+        for (int r = write; r >= 0; r--) {
+            for (int c = 0; c < COLS; c++) {
+                boardState[r][c] = 0;
+            }
+        }
+
+        return cleared;
     }
 
-    // zero out top rows after compacting
-    for (int r = write; r >= 0; r--) {
-        for (int c = 0; c < COLS; c++) {
-            boardState[r][c] = 0;
-        }
-    }
-
-    return cleared;
-    }
     // -------------------- Scoring --------------------
     private void addScoreForClears(int lines) {
-    switch (lines) {
-        case 1: scorePoints += 100; break;
-        case 2: scorePoints += 300; break;
-        case 3: scorePoints += 500; break;
-        case 4: scorePoints += 800; break;
-        default: break;
+        switch (lines) {
+            case 1: scorePoints += 100; break;
+            case 2: scorePoints += 300; break;
+            case 3: scorePoints += 500; break;
+            case 4: scorePoints += 800; break;
+            default: break;
+        }
+        updateScoreLabel();
     }
-    updateScoreLabel();
-}
-
 
     // -------------------- Spawning/locking --------------------
 
@@ -301,15 +345,15 @@ public class GameView extends BorderPane {
     private static int colorFor(TetrominoType t) {
         // simple ARGB colors (alpha FF)
         switch (t) {
-        case I: return 0xFF00BCD4; // teal
-        case O: return 0xFFFFC107; // amber
-        case T: return 0xFF9C27B0; // purple
-        case J: return 0xFF3F51B5; // blue
-        case L: return 0xFFFF9800; // orange
-        case S: return 0xFF4CAF50; // green
-        case Z: return 0xFFF44336; // red
-        default: return 0xFFFFFFFF;
-    }
+            case I: return 0xFF00BCD4; // teal
+            case O: return 0xFFFFC107; // amber
+            case T: return 0xFF9C27B0; // purple
+            case J: return 0xFF3F51B5; // blue
+            case L: return 0xFFFF9800; // orange
+            case S: return 0xFF4CAF50; // green
+            case Z: return 0xFFF44336; // red
+            default: return 0xFFFFFFFF;
+        }
     }
 
     private static Color toColor(int argb) {
@@ -321,24 +365,24 @@ public class GameView extends BorderPane {
     private enum TetrominoType {
         // 1 = filled, 0 = empty. Rotations are small matrices.
         I(new int[][][] {
-                { {1,1,1,1} },                 // rotation 0 (1 x 4)
-                { {1},{1},{1},{1} }            // rotation 1 (4 x 1)
+            { {1,1,1,1} },                 // rotation 0 (1 x 4)
+            { {1},{1},{1},{1} }            // rotation 1 (4 x 1)
         }),
         O(new int[][][] {
-                { {1,1},
-                  {1,1} }                      // O effectively one rotation
+            { {1,1},
+              {1,1} }                      // O effectively one rotation
         }),
         T(new int[][][] {
-                { {1,1,1},
-                  {0,1,0} },
-                { {0,1},
-                  {1,1},
-                  {0,1} },
-                { {0,1,0},
-                  {1,1,1} },
-                { {1,0},
-                  {1,1},
-                  {1,0} }
+            { {1,1,1},
+              {0,1,0} },
+            { {0,1},
+              {1,1},
+              {0,1} },
+            { {0,1,0},
+              {1,1,1} },
+            { {1,0},
+              {1,1},
+              {1,0} }
         }),
         J(new int[][][] {
             {{1,0,0},
@@ -394,4 +438,3 @@ public class GameView extends BorderPane {
         void rotateCW() { rotationIndex = (rotationIndex + 1) % type.rotations.length; }
     }
 }
-

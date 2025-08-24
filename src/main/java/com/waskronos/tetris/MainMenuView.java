@@ -1,10 +1,15 @@
 package com.waskronos.tetris;
 
+import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.geometry.Insets;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
+
+import java.util.Optional;
 
 public class MainMenuView extends VBox {
     public MainMenuView() {
@@ -27,7 +32,7 @@ public class MainMenuView extends VBox {
         settings.setPrefWidth(buttonWidth);
         quit.setPrefWidth(buttonWidth);
 
-        //text on buttons
+        // Text styling
         String buttonStyle = "-fx-font-size: 18px; -fx-padding: 10px 0;";
         startGame.setStyle(buttonStyle);
         highScores.setStyle(buttonStyle);
@@ -38,8 +43,30 @@ public class MainMenuView extends VBox {
         startGame.setOnAction(e -> App.setRoot(new GameView()));
         highScores.setOnAction(e -> App.setRoot(new HighScoresView()));
         settings.setOnAction(e -> App.setRoot(new SettingsView()));
-        quit.setOnAction(e -> System.exit(0));
+        quit.setOnAction(e -> confirmQuit());
 
         getChildren().addAll(title, startGame, highScores, settings, quit);
+    }
+
+    private void confirmQuit() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Exit Program");
+        alert.setHeaderText("Are you sure you want to quit?");
+        alert.setContentText("Yes = exit program\nNo = return to main screen");
+
+        ButtonType YES = new ButtonType("Yes");
+        ButtonType NO  = new ButtonType("No");
+        alert.getButtonTypes().setAll(YES, NO);
+
+        // Tie the dialog to this window if available (optional but nice)
+        if (getScene() != null && getScene().getWindow() != null) {
+            alert.initOwner(getScene().getWindow());
+        }
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == YES) {
+            Platform.exit(); // exit program
+        }
+        // Else: No -> just close dialog and remain on MainMenuView
     }
 }
