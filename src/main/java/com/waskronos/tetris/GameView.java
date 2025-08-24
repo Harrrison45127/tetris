@@ -23,8 +23,13 @@ public class GameView extends BorderPane {
     private static final int COLS = 10;
     private static final int ROWS = 20;
     private static final int CELL = 28; // px
+    private int scorePoints = 0;
 
     private final Label score = new Label("Score: 0");
+    private void updateScoreLabel() {
+    score.setText("Score: " + scorePoints);
+    }
+
     private final GridPane board = new GridPane();
 
     // --- Model (logic-only)
@@ -78,8 +83,6 @@ public class GameView extends BorderPane {
                 newScene.addEventHandler(javafx.scene.input.KeyEvent.KEY_PRESSED, this::handleKey);
             }
         });
-
-        // ensure the view can get focus if you add keys later
         setFocusTraversable(true);
         requestFocus();
        
@@ -102,6 +105,10 @@ public class GameView extends BorderPane {
             active.row++;
         } else {
             lock(active);
+            int cleared = clearFullLines(); 
+            if (cleared > 0) {
+                addScoreForClears(cleared);
+            }
             spawnNewPiece();
         }
         render();
@@ -152,6 +159,50 @@ public class GameView extends BorderPane {
         }
         return false;
     }
+    // -------------------- clear full lines --------------------
+    private int clearFullLines() {
+    int write = ROWS - 1;   // where to write the next kept row
+    int cleared = 0;
+
+    // walk from bottom to top, copying rows that are not full
+    for (int r = ROWS - 1; r >= 0; r--) {
+        boolean full = true;
+        for (int c = 0; c < COLS; c++) {
+            if (boardState[r][c] == 0) { full = false; break; }
+        }
+        if (!full) {
+            // keep row copy to write
+            for (int c = 0; c < COLS; c++) {
+                boardState[write][c] = boardState[r][c];
+            }
+            write--;
+        } else {
+            //Full row is not copied
+            cleared++;
+        }
+    }
+
+    // zero out top rows after compacting
+    for (int r = write; r >= 0; r--) {
+        for (int c = 0; c < COLS; c++) {
+            boardState[r][c] = 0;
+        }
+    }
+
+    return cleared;
+    }
+    // -------------------- Scoring --------------------
+    private void addScoreForClears(int lines) {
+    switch (lines) {
+        case 1: scorePoints += 100; break;
+        case 2: scorePoints += 300; break;
+        case 3: scorePoints += 500; break;
+        case 4: scorePoints += 800; break;
+        default: break;
+    }
+    updateScoreLabel();
+}
+
 
     // -------------------- Spawning/locking --------------------
 
