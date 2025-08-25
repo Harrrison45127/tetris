@@ -215,7 +215,7 @@ public class GameView extends BorderPane {
                 if (boardState[r][c] == 0) { full = false; break; }
             }
             if (!full) {
-                // keep row copy to write
+                // keep row and copy to write index
                 for (int c = 0; c < COLS; c++) {
                     boardState[write][c] = boardState[r][c];
                 }
@@ -311,36 +311,43 @@ public class GameView extends BorderPane {
     // -------------------- Rendering --------------------
 
     private void render() {
-        // paint locked board
-        for (int r = 0; r < ROWS; r++) {
-            for (int c = 0; c < COLS; c++) {
-                int val = boardState[r][c];
-                Rectangle rect = cellViews[r][c];
-                if (val == 0) {
-                    rect.setFill(Color.BLACK);
-                } else {
-                    rect.setFill(Color.rgb((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF));
-                }
-            }
-        }
+    // ---- paint locked board (enhanced loop over each row) ----
+    for (int r = 0; r < ROWS; r++) {
+        int[] rowVals = boardState[r];
+        Rectangle[] rowRects = cellViews[r];
 
-        // overlay active piece
-        if (active != null) {
-            int[][] shape = active.shape();
-            Color color = toColor(colorFor(active.type));
-            for (int sr = 0; sr < shape.length; sr++) {
-                for (int sc = 0; sc < shape[0].length; sc++) {
-                    if (shape[sr][sc] == 1) {
-                        int br = active.row + sr;
-                        int bc = active.col + sc;
-                        if (inBounds(br, bc)) {
-                            cellViews[br][bc].setFill(color);
-                        }
-                    }
-                }
+        int c = 0; // column index to pair with the for-each value
+        for (int val : rowVals) {
+            Rectangle rect = rowRects[c++];
+            if (val == 0) {
+                rect.setFill(Color.BLACK);
+            } else {
+                rect.setFill(Color.rgb((val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF));
             }
         }
     }
+
+    // ---- overlay active piece (enhanced loop over each row of the shape) ----
+    if (active != null) {
+        int[][] shape = active.shape();
+        Color color = toColor(colorFor(active.type));
+
+        for (int sr = 0; sr < shape.length; sr++) {
+            int[] shapeRow = shape[sr];
+            int sc = 0; // shape column index paired with the for-each
+            for (int cell : shapeRow) {
+                if (cell == 1) {
+                    int br = active.row + sr;
+                    int bc = active.col + sc;
+                    if (inBounds(br, bc)) {
+                        cellViews[br][bc].setFill(color);
+                    }
+                }
+                sc++;
+            }
+        }
+    }
+}
 
     private static int colorFor(TetrominoType t) {
         // simple ARGB colors (alpha FF)
